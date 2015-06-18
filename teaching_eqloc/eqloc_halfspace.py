@@ -41,6 +41,8 @@ def calcLLK(M,data_dict):
 
     # Parse input
     x    = data_dict['x']
+    vp    = data_dict['vp']
+    vs    = data_dict['vs']
     data = data_dict['data']
     sigcov  = data_dict['sigma']
 
@@ -48,7 +50,7 @@ def calcLLK(M,data_dict):
     Norm = -(np.log(np.linalg.det(sigcov))+0.5*np.log(2*np.pi))*data.size
 
     # Residual vector
-    res  = (data - calcPred(M,x)) # residuals
+    res  = (data - calcPred(M, data_dict)) # residuals
 
     # Log-Likelihood
     logLLK = -0.5*(np.dot(np.dot(res.T, np.linalg.pinv(sigcov)),res)) # log of model likelihood
@@ -58,13 +60,16 @@ def calcLLK(M,data_dict):
 
 
 # -------------------------------------------
-def calcPred(M,x1):
+def calcPred(M, data_dict):
     '''
     Compute arrival times
     Args:
     * M: Model M[0] = origin time, M[1] = x, M[2] = y, M[3] = z, M[4] = vp
     * x1: receiver locations [(x, y, z)]
     '''
+    x1 = data_dict['x']
+    vp = data_dict['vp']
+    vs = data_dict['vs']
 
     nsta, foo = x1.shape
     ttimes = np.empty(nsta*2, dtype=float)
@@ -73,14 +78,21 @@ def calcPred(M,x1):
     for i in xrange(nsta):
         d = np.sqrt((x1[i, 0]-x[0])**2 + (x1[i, 1]-x[1])**2 +
                     (x1[i, 2]-x[2])**2) 
-        ttimes[i] = M[0] + d/M[4]
-        ttimes[i+nsta] = M[0] + d/M[5]
+        ttimes[i] = M[0] + d/vp
+        ttimes[i+nsta] = M[0] + d/vs
 
     assert not np.isnan(ttimes).any(), 'NaN value in travel-times'
 
     # All done
     return ttimes
 
+
+def plot_cov(cov, title=''):
+    fig = plt.figure(facecolor='w')
+    ax = plt.subplot(111)
+    im = ax.matshow(cov)
+    plt.colorbar(im)
+    plt.suptitle(title)
 
 # -------------------------------------------
 def plot_result(M,mtarget,i1,i2,limits,names,show_ini=True,title = None):
@@ -147,6 +159,30 @@ def plot_result(M,mtarget,i1,i2,limits,names,show_ini=True,title = None):
         plt.suptitle(title)    
 
 
+def calc_model_cov(M, data_dict):
+    # assume a gaussian distribution around Vp and Vs
+    n_samples = 1000
+    n_data = len(data_dict['data'])
+    vp = data_dict['vp']
+    vs = data_dict['vs']
+    sig_vp = data_dict['sig_vp']
+    sig_vs = data_dict['sig_vs']
+
+    vp = t_vp + sig_vp*np.random.randn(n_samples)
+    vs = t_vs + sig_vs*np.random.randn(n_samples)
+
+    all_data = np.empty((n_samples, n_data), dtype=float)
+
+    mod_dict = {}
+    for i in xrange(n_samples):
+        mod_dict['x'] = data_dict['x']
+        mod_dict['vp'] = vp[i]
+        mod_dict['vs'] = vs[i]
+        all_data[i, :] = calcPred(M, mod_dict)
+
+    std_data = np.std(all_data, axis=0)
+    
+    return np.diag(std_data*std_data)
 
 ### Define input parameters ###
 ##############################
@@ -171,32 +207,23 @@ t_vp = 5.5
 t_vs = t_vp/np.sqrt(3)
 
 # Data error 
-sigdata_p = 0.01
-sigdata_s = 0.05
+sigdata_p = 0.03
+sigdata_s = 0.08
 
 # Target model vector
-mtarget = np.array([t_otime,t_x, t_y, t_z, t_vp, t_vs])
+mtarget = np.array([t_otime,t_x, t_y, t_z])
 
 
 ## Prior Bounds (assuming uniform prior) 
 prior_bounds = np.array([[0.0, 4.0],  # otime
                          [-5.0, 5.0],# x
                          [-5.0, 5.0], # y
-                         [0.001, 10.0], # z
-                         [3.0, 8.0], # vp
-                         [3.0/np.sqrt(3), 8.0/np.sqrt(3)]]) # vs
+                         [0.001, 10.0]]) # z
 
-
-## First sample in the markov chain 
-m_ini = np.array([np.random.uniform(prior_bounds[0][0], prior_bounds[0][1]), 
-                  np.random.uniform(prior_bounds[1][0], prior_bounds[1][1]),
-                  np.random.uniform(prior_bounds[2][0], prior_bounds[2][1]),
-                  np.random.uniform(prior_bounds[3][0], prior_bounds[3][1]),
-                  t_vp, t_vs])
 
 
 ## Covariance of the proposal PDF (Gaussian PDF)
-prop_sigma = np.array([0.03, 0.03, 0.03, 0.03, 0.01, 0.01])
+prop_sigma = np.array([0.03, 0.03, 0.03, 0.03])
 prop_cov   = np.diag(prop_sigma*prop_sigma)
 
 
@@ -211,16 +238,37 @@ z_sta = np.zeros(nsta)
 x = np.array(zip(x_sta, y_sta, z_sta))
     
 # Creation of noise free synthetic data
-pred = calcPred(mtarget, x)       # Unnormalized noise free data
+data_dict = {'x':x, 'vp':t_vp, 'vs':t_vs}
+pred = calcPred(mtarget, data_dict)       # Unnormalized noise free data
+
 
 # Noisy data
 npts = len(pred)/2
 sigdata = np.empty(2*npts, dtype=float)
 sigdata[0:npts] = sigdata_p
 sigdata[npts:] = sigdata_s
-sigcov = np.diag(sigdata*sigdata)
-data = pred + sigdata*np.random.randn(pred.size); # Noisy data
-data_dict = {'x':x,'data':data,'sigma':sigcov}
+cov_data = np.diag(sigdata*sigdata)
+data = pred + sigdata*np.random.randn(pred.size) # Noisy data
+data_dict['data'] = data
+
+# Creation of model discrepancy covariance
+sig_vp = 0.05*t_vp
+sig_vs = 0.05*t_vs
+data_dict['sig_vp'] = sig_vp
+data_dict['sig_vs'] = sig_vs
+cov_model = calc_model_cov(mtarget, data_dict)
+
+# Add the model discrepancy covariance and the data covariance
+data_dict['sigma'] = cov_data+cov_model
+plot_cov(cov_data, 'Data covariance')
+plot_cov(cov_model, 'Model discrepancy covariance')
+plot_cov(data_dict['sigma'], 'Full covariance')
+
+## First sample in the markov chain 
+ifirst = np.argmin(data)
+xfirst = x[ifirst, :]
+m_ini = np.array([np.min(data), xfirst[0], xfirst[1], xfirst[2]])
+
 
 ## Run Metropolis
 
@@ -242,11 +290,11 @@ M_std  = M[iburn:,:].std(axis=0)
 # Print information
 print("--- %s seconds ---" % (run_time))
 print("Acceptance rate : %f" %(float(accepted)/n_samples))
-print("Posterior mean : ", M_mean)
-print("2-sigma error  : ", 2*M_std)
+print "Posterior mean : ", M_mean
+print "2-sigma error  : ", 2*M_std
 
 # Plot data
-pred = calcPred(M_mean,x)
+pred = calcPred(M_mean, data_dict)
 plt.figure(facecolor='w')
 ax=plt.subplot(111)
 ax.errorbar(np.arange(len(data)), data, yerr=sigdata, fmt='bx')
@@ -258,6 +306,5 @@ ax.set_ylabel('Arrival time')
 # Plot results without burn-in
 plot_result(M[iburn:,:],mtarget,1,2,prior_bounds,names,show_ini=False,title='Halfspace location')
 plot_result(M[iburn:,:],mtarget,0,3,prior_bounds,names,show_ini=False,title='Halfspace location')
-plot_result(M[iburn:,:],mtarget,4,5,prior_bounds,names,show_ini=False,title='Halfspace location')
 
 plt.show()
