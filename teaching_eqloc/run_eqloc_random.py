@@ -4,8 +4,10 @@ import matplotlib.pyplot as plt
 
 from Metropolis import Metropolis
 from eqloc_halfspace import deploy_random_stations, calcPred, calc_model_cov,\
-     plot_cov, calcLLK, verify, plot_datafit, plot_result, deploy_circular_array
+     plot_cov, calcLLK, verify, plot_datafit, plot_result,\
+     deploy_circular_array, deploy_disk_array
 
+np.random.seed()
 
 # Number of samples 
 n_samples = 50000
@@ -35,7 +37,7 @@ sig_vp = 0.03 * t_vp
 sig_vs = 0.03 * t_vs
 
 # number of stations
-nsta = 10
+nsta = 4
 
 # Prior Bounds (assuming uniform prior) 
 prior_bounds = np.array([[0.0, 4.0],  # otime
@@ -48,8 +50,9 @@ prop_sigma = np.array([0.03, 0.03, 0.03, 0.03])
 prop_cov   = np.diag(prop_sigma*prop_sigma)
 
 # station positions
-# x = deploy_random_stations(nsta, prior_bounds, borehole=True)
-x = deploy_circular_array(nsta, prior_bounds, 3.0, 3.0, 2., borehole=False)
+# x = deploy_random_stations(nsta, prior_bounds, borehole=False)
+# x = deploy_circular_array(nsta, prior_bounds, 3.0, 3.0, 2., borehole=False)
+x = deploy_disk_array(nsta, prior_bounds, 3.0, 3.0, 2., borehole=False)
    
 # Creation of noise free synthetic data
 data_dict = {'x':x, 'vp':t_vp, 'vs':t_vs}
@@ -74,9 +77,9 @@ cov_model = calc_model_cov(mtarget, data_dict)
 
 # Add the model discrepancy covariance and the data covariance
 data_dict['sigma'] = cov_data+cov_model
-plot_cov(cov_data, 'Data covariance')
-plot_cov(cov_model, 'Model discrepancy covariance')
-plot_cov(data_dict['sigma'], 'Full covariance')
+plot_cov(cov_data, 'Data covariance from measurement uncertainty')
+plot_cov(cov_model, 'Data covariance from velocity model uncertainty')
+plot_cov(data_dict['sigma'], 'Full data covariance')
 
 # Set first point in the Markov chain to the the information at the first
 # station receiving the information about the event

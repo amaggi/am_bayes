@@ -87,7 +87,7 @@ def plot_cov(cov, title=''):
     plt.figure(facecolor='w')
     ax = plt.subplot(111)
     im = ax.matshow(cov_masked)
-    plt.colorbar(im)
+    plt.colorbar(im, label='s^2')
     plt.suptitle(title)
 
 
@@ -212,12 +212,11 @@ def plot_datafit(M, data_dict):
 
 def deploy_random_stations(nsta, prior_bounds, borehole=False):
 
-    nsta = 10
     x_sta = np.random.uniform(prior_bounds[1][0], prior_bounds[1][1], nsta)
     y_sta = np.random.uniform(prior_bounds[2][0], prior_bounds[2][1], nsta)
     z_sta = np.zeros(nsta)
     if borehole:
-        i = np.random.randint(10)
+        i = np.random.randint(nsta)
         z_sta[i] = np.random.uniform(prior_bounds[3][0], prior_bounds[3][1])
 
     x = np.array(zip(x_sta, y_sta, z_sta))
@@ -225,14 +224,28 @@ def deploy_random_stations(nsta, prior_bounds, borehole=False):
 
 def deploy_circular_array(nsta, prior_bounds, x0, y0, radius, borehole=False):
 
-    nsta = 10
     theta = np.linspace(0, np.pi*2, nsta+1)
     np.delete(theta, -1)
     x_sta = x0 + radius * np.cos(theta)
     y_sta = y0 + radius * np.sin(theta)
     z_sta = np.zeros(nsta)
     if borehole:
-        i = np.random.randint(10)
+        i = np.random.randint(nsta)
+        z_sta[i] = np.random.uniform(prior_bounds[3][0], prior_bounds[3][1])
+
+    x = np.array(zip(x_sta, y_sta, z_sta))
+    return x
+
+def deploy_disk_array(nsta, prior_bounds, x0, y0, radius, borehole=False):
+
+    theta = np.random.rand(nsta)*2*np.pi
+    r = np.random.rand(nsta)*radius
+    np.delete(theta, -1)
+    x_sta = x0 + np.sqrt(r) * np.cos(theta)
+    y_sta = y0 + np.sqrt(r) * np.sin(theta)
+    z_sta = np.zeros(nsta)
+    if borehole:
+        i = np.random.randint(nsta)
         z_sta[i] = np.random.uniform(prior_bounds[3][0], prior_bounds[3][1])
 
     x = np.array(zip(x_sta, y_sta, z_sta))
