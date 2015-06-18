@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from Metropolis import Metropolis
 from eqloc_halfspace import deploy_random_stations, calcPred, calc_model_cov,\
-     plot_cov, calcLLK, verify, plot_datafit, plot_result
+     plot_cov, calcLLK, verify, plot_datafit, plot_result, deploy_circular_array
 
 
 # Number of samples 
@@ -31,8 +31,8 @@ sigdata_p = 0.01
 sigdata_s = 0.05
 
 # velocity model uncertainty
-sig_vp = 0.05 * t_vp
-sig_vs = 0.05 * t_vs
+sig_vp = 0.03 * t_vp
+sig_vs = 0.03 * t_vs
 
 # number of stations
 nsta = 10
@@ -48,7 +48,8 @@ prop_sigma = np.array([0.03, 0.03, 0.03, 0.03])
 prop_cov   = np.diag(prop_sigma*prop_sigma)
 
 # station positions
-x = deploy_random_stations(nsta, prior_bounds)
+# x = deploy_random_stations(nsta, prior_bounds, borehole=True)
+x = deploy_circular_array(nsta, prior_bounds, 3.0, 3.0, 2., borehole=False)
    
 # Creation of noise free synthetic data
 data_dict = {'x':x, 'vp':t_vp, 'vs':t_vs}
@@ -107,9 +108,9 @@ print "2-sigma error  : ", 2*M_std
 
 # Plot results 
 plot_datafit(M_mean, data_dict)
-plot_result(M[iburn:, :], 1, 2, prior_bounds, names, mtarget=mtarget,
-            title='Halfspace location')
-plot_result(M[iburn:, :], 0, 3, prior_bounds, names, mtarget=mtarget,
+plot_result(M[iburn:, :], 1, 2, prior_bounds, names, data_dict, plot_sta=True,
+            mtarget=mtarget, title='Halfspace location')
+plot_result(M[iburn:, :], 0, 3, prior_bounds, names, data_dict, mtarget=mtarget,
             title='Halfspace location')
 
 # show all plots

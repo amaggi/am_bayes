@@ -91,7 +91,8 @@ def plot_cov(cov, title=''):
     plt.suptitle(title)
 
 
-def plot_result(M, i1, i2, limits, names, mtarget=None, title=None):
+def plot_result(M, i1, i2, limits, names, data_dict, plot_sta=False,
+                mtarget=None, title=None):
     '''
     Plot results
     Args:
@@ -130,6 +131,9 @@ def plot_result(M, i1, i2, limits, names, mtarget=None, title=None):
     ax1.pcolormesh(x, y, Hmask, zorder=0, vmin=0)
     if mtarget is not None:
         ax1.plot(mtarget[i1], mtarget[i2], 'r*', markersize=10, zorder=2)
+    if plot_sta:
+        x1 = data_dict['x']
+        ax1.plot(x1[:, i1-1], x1[:, i2-1], 'r^', markersize=10, zorder=2)
     ax1.set_xlabel(names[i1])
     ax1.set_ylabel(names[i2])
     ax1.set_ylim(ybounds[0], ybounds[1])
@@ -206,12 +210,30 @@ def plot_datafit(M, data_dict):
     ax.set_ylabel('Arrival time')
 
 
-def deploy_random_stations(nsta, prior_bounds):
+def deploy_random_stations(nsta, prior_bounds, borehole=False):
 
     nsta = 10
     x_sta = np.random.uniform(prior_bounds[1][0], prior_bounds[1][1], nsta)
     y_sta = np.random.uniform(prior_bounds[2][0], prior_bounds[2][1], nsta)
     z_sta = np.zeros(nsta)
+    if borehole:
+        i = np.random.randint(10)
+        z_sta[i] = np.random.uniform(prior_bounds[3][0], prior_bounds[3][1])
+
+    x = np.array(zip(x_sta, y_sta, z_sta))
+    return x
+
+def deploy_circular_array(nsta, prior_bounds, x0, y0, radius, borehole=False):
+
+    nsta = 10
+    theta = np.linspace(0, np.pi*2, nsta+1)
+    np.delete(theta, -1)
+    x_sta = x0 + radius * np.cos(theta)
+    y_sta = y0 + radius * np.sin(theta)
+    z_sta = np.zeros(nsta)
+    if borehole:
+        i = np.random.randint(10)
+        z_sta[i] = np.random.uniform(prior_bounds[3][0], prior_bounds[3][1])
 
     x = np.array(zip(x_sta, y_sta, z_sta))
     return x
