@@ -37,7 +37,7 @@ sig_vp = 0.03 * t_vp
 sig_vs = 0.03 * t_vs
 
 # number of stations
-nsta = 4
+nsta = 3
 
 # Prior Bounds (assuming uniform prior) 
 prior_bounds = np.array([[0.0, 4.0],  # otime
@@ -50,9 +50,9 @@ prop_sigma = np.array([0.03, 0.03, 0.03, 0.03])
 prop_cov   = np.diag(prop_sigma*prop_sigma)
 
 # station positions
-# x = deploy_random_stations(nsta, prior_bounds, borehole=False)
+x = deploy_random_stations(nsta, prior_bounds, borehole=False)
 # x = deploy_circular_array(nsta, prior_bounds, 3.0, 3.0, 2., borehole=False)
-x = deploy_disk_array(nsta, prior_bounds, 3.0, 3.0, 2., borehole=False)
+# x = deploy_disk_array(nsta, prior_bounds, 3.0, 3.0, 2., borehole=False)
    
 # Creation of noise free synthetic data
 data_dict = {'x':x, 'vp':t_vp, 'vs':t_vs}
@@ -99,9 +99,6 @@ iburn = np.where(LLK >= LLK[n_samples/2:].mean())[0][0]
 # Mean/STD
 M_mean = M[iburn:, :].mean(axis=0)
 M_std = M[iburn:, :].std(axis=0)
-
-
-## Output display & figures
 
 # Print information
 print("--- %s seconds ---" % (run_time))

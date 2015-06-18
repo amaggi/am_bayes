@@ -87,7 +87,7 @@ def plot_cov(cov, title=''):
     plt.figure(facecolor='w')
     ax = plt.subplot(111)
     im = ax.matshow(cov_masked)
-    plt.colorbar(im, label='s^2')
+    plt.colorbar(im, label='seconds^2')
     plt.suptitle(title)
 
 
