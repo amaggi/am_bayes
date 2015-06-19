@@ -69,7 +69,7 @@ def get_direction(x, y, pc_lane):
     return direction
         
 
-def run_accidents(n_pc, grass=True):
+def run_accidents(n_pc, crit_dist, grass=True):
 
     n = 2000
     np.random.seed()
@@ -92,21 +92,26 @@ def run_accidents(n_pc, grass=True):
                                                     pc_lane[i, ic], ac_lane[i],
                                                     grass=grass)
 
+    p_a = (results_a < crit_dist).sum() / float(n)
+    p_b = (results_b < crit_dist).sum() / float(n)
+    p_c = (np.min(results_c, axis=1) < crit_dist).sum() / float(n)
+
     return np.average(results_a), np.average(results_b), \
-           np.average(np.min(results_c, axis=1))
+           np.average(np.min(results_c, axis=1)), p_a, p_b, p_c
 
 
 if __name__ == '__main__':
 
     n_pc_max = 10 
+    D = 0.1
 
-    results_grass = np.empty((n_pc_max, 3), dtype=float)
-    results_concrete = np.empty((n_pc_max, 3), dtype=float)
+    results_grass = np.empty((n_pc_max, 6), dtype=float)
+    results_concrete = np.empty((n_pc_max, 6), dtype=float)
 
     # check for different numbers of patrol cars
     for n_pc in xrange(n_pc_max):
-        results_grass[n_pc, :] = run_accidents(n_pc+1, grass=True)
-        results_concrete[n_pc, :] = run_accidents(n_pc+1, grass=False)
+        results_grass[n_pc, :] = run_accidents(n_pc+1, D, grass=True)
+        results_concrete[n_pc, :] = run_accidents(n_pc+1, D, grass=False)
 
     plt.figure()
     cars = np.arange(n_pc_max)+1
@@ -122,5 +127,22 @@ if __name__ == '__main__':
     plt.xlabel('Number of patrol cars')
     plt.ylabel('Average distance to accident')
     plt.xlim([0, n_pc_max+1])
+    plt.title('Average distance to accident')
+
+    plt.figure()
+    plt.plot(1, results_grass[0, 3], 'x', label='(a) Grass')
+    plt.plot(1, results_grass[0, 4], 'o', label='(b) Grass')
+    plt.plot(cars, results_grass[:, 5], label='(c) Grass')
+    plt.plot(1, results_concrete[0, 3], 'x', label='(a) Concrete')
+    plt.plot(1, results_concrete[0, 4], 'o', label='(b) Concrete')
+    plt.plot(cars, results_concrete[:, 5], label='(c) Concrete')
+
+    plt.legend()
+
+    plt.xlabel('Number of patrol cars')
+    plt.ylabel('Probability of distance < D')
+    plt.xlim([0, n_pc_max+1])
+    plt.title('Probaility of distance < D, with D=%.2f'%D)
+
 
     plt.show()
