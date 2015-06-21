@@ -27,7 +27,8 @@ def setup_queue(lam, mu, tol_time, time_limit):
     return arrival_times, serving_times, tolerance_times
 
 
-def run_day(n_servers, lam, mu, tol_time, time_limit, time_step):
+def run_day(n_servers, lam, mu, tol_time, time_limit, time_step,
+            outside=False):
 
     # set up the queues
     arrival_times, serving_times, tolerance_times =\
@@ -102,7 +103,10 @@ def run_day(n_servers, lam, mu, tol_time, time_limit, time_step):
     queue_length_mean = np.mean(queue_length)
     queue_length_max = np.max(queue_length)
 
-    return len(arrival_times), wait_time_mean, wait_time_max,\
+    if outside:
+        return len(arrival_times), np.mean(wait_times+serving_times), overtime
+    else:
+        return len(arrival_times), wait_time_mean, wait_time_max,\
                queue_length_mean, queue_length_max, idle_time, overtime,\
                n_unserved 
 
