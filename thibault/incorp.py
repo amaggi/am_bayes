@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from datetime import date
+from datetime import date, timedelta
 
 input_fname = 'incorporations.txt'
 
@@ -30,6 +30,14 @@ def read_input():
                         np.int(date2[i, 0]))
 
     data = np.vstack((d1, d2, comp, pd_data['SCHOOL'].values)).T
+
+    # fix bugs in input data
+    for i in xrange(nprom):
+        prom = data[i, :]
+        # Montlucon 7 orange overlap
+        if prom[0]==date(2013, 12, 10) and prom[2]==7:
+            data[i, 0] = prom[0] - timedelta(14)
+            data[i, 1] = prom[1] - timedelta(14)
 
     return data
 
@@ -119,6 +127,68 @@ def state_at_time(data, t):
         
     return state_dict
 
+def find_nan_candidates(data):
+
+    n, nd = data.shape
+
+    comp = data[:, 2]
+    nan_indexes = []
+    for i in xrange(n):
+        if np.isnan(comp[i]):
+            nan_indexes.append(i)
+    nan_data = data[nan_indexes, :]
+
+    # make up non-nan indexes
+    ok_indexes = range(n)
+    for i in nan_indexes:
+        ok_indexes.remove(i)
+
+    data_dict = split_data_by_school(data[ok_indexes, :])
+    for key, value in data_dict.iteritems():
+        print key, np.unique(value[:, 2])
+
+    n_nan, nd = nan_data.shape
+    for index in xrange(n_nan):
+        school = nan_data[index, 3]
+        state_start = state_at_time(data_dict[school], nan_data[index, 0])
+        state_end = state_at_time(data_dict[school], nan_data[index, 1])
+        print nan_data[index, :]
+        print state_start
+        print state_end
+        
+
+    return nan_data
+        
+
+def evaluate_consistency(data):
+
+    # split into schools
+    data_dict = split_data_by_school(data)
+    non_consistent = {}
+
+    for school in data_dict.keys():
+        school_data = data_dict[school]
+        n, nd = data_dict.shape
+        non_consistent[school] = 0
+
+        for i in xrange(n):
+            for j in xrange(n):
+                if not j==i:
+                    ok = compatible(school_data[j, :], school_data[i, :])
+                    if not ok:
+                        non_consistent[school] = non_consistent[school] + 1
+
+    #### will not work - need to split by company too !!!
+    return non_consistent
+
+def compatible(prom1, prom2):
+    if prom1[0] >= prom2[0] and prom1[0] <= prom2[1]:
+        return False
+    elif prom1[1] >= prom2[0] and prom1[1] <= prom2[1]:
+        return False
+    else:
+        return True
+
 
 def split_data_by_school(data):
 
@@ -144,5 +214,8 @@ if __name__ == '__main__':
     t = date.today()
     state = state_at_time(data, t)
     print state
+    nan_data = find_nan_candidates(data)
+    n = evaluate_consistency(data)
+    print n
     # plot_stats(data)
     #plt.show()
