@@ -34,9 +34,8 @@ def read_input():
     return data
 
 
-def plot_date_stats(data):
+def plot_stats(data):
     
-
     n, nd = data.shape
     duration = np.array([(data[i, 1] - data[i, 0]).days for i in xrange(n)])
     end_day = np.array([data[i, 1].weekday() for i in xrange(n)])
@@ -78,7 +77,7 @@ def plot_date_stats(data):
     idle_days = []
     data_by_school = split_data_by_school(data)
     for key, value in data_by_school.iteritems():
-        data_by_company = split_data_by_company(value)
+        data_by_company =  split_data_by_company(value)
         for key2, value2 in data_by_company.iteritems():
             print key, key2
             data_sorted = np.sort(value2, axis=0)
@@ -97,6 +96,29 @@ def plot_date_stats(data):
     plt.xlabel('Jours entre promotions')
     plt.ylabel('Nombre de formations')
     plt.title('Jours entre les formations')
+
+
+def state_at_time(data, t):
+
+    n, np = data.shape
+
+    state_dict = {}
+    # set up dictonary with school names
+    print data
+    schools = np.unique(data[:, 3])
+    for s in schools:
+        state_dict[s] = []
+
+    # loop over all data and add current groups to dictionary
+    for i in xrange(n):
+        start_time = data[i, 0]
+        end_time = data[i, 1]
+        comp = data[i, 2]
+        school = data[i, 3]
+        if t >= start_time and t <= end_time:
+            state_dict[school].append(comp)
+        
+    return state_at_time
 
 
 
@@ -121,5 +143,8 @@ def split_data_by_company(data):
 if __name__ == '__main__':
 
     data = read_input()
-    plot_date_stats(data)
+    t = date.today()
+    #state = state_at_time(data, t)
+    #print state
+    plot_stats(data)
     #plt.show()
