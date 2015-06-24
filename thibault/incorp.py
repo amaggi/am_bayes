@@ -100,11 +100,10 @@ def plot_stats(data):
 
 def state_at_time(data, t):
 
-    n, np = data.shape
+    n, nd = data.shape
 
     state_dict = {}
     # set up dictonary with school names
-    print data
     schools = np.unique(data[:, 3])
     for s in schools:
         state_dict[s] = []
@@ -118,8 +117,7 @@ def state_at_time(data, t):
         if t >= start_time and t <= end_time:
             state_dict[school].append(comp)
         
-    return state_at_time
-
+    return state_dict
 
 
 def split_data_by_school(data):
@@ -144,7 +142,7 @@ if __name__ == '__main__':
 
     data = read_input()
     t = date.today()
-    #state = state_at_time(data, t)
-    #print state
-    plot_stats(data)
+    state = state_at_time(data, t)
+    print state
+    # plot_stats(data)
     #plt.show()
