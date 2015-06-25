@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import date, timedelta
+from copy import deepcopy
 
 input_fname = 'incorporations.txt'
 
@@ -48,7 +49,6 @@ def plot_stats(data):
     duration = np.array([(data[i, 1] - data[i, 0]).days for i in xrange(n)])
     end_day = np.array([data[i, 1].weekday() for i in xrange(n)])
     school = data[:, 3]
-    print school
 
 
     # Length of training
@@ -81,31 +81,36 @@ def plot_stats(data):
     plt.ylabel('Nombre de formations')
     plt.title('Jours de sortie des formations')
 
-    # get stats of times between successive groups
-    idle_days = []
+    # Days between successive groups
+    idle_days = get_idle_days(data)
+    idle_median = np.median(np.concatenate(idle_days.values()))
+    idle_low =  np.percentile(np.concatenate(idle_days.values()), 5)
+    idle_high = np.percentile(np.concatenate(idle_days.values()), 95)
+    plt.figure(facecolor='w')
+    bins = np.arange(58)*7
+    plt.hist([idle_days[key] for key in idle_days.keys()], bins=bins,
+             label = [key for key in idle_days.keys()], stacked=True)
+    plt.xlabel('Jours entre promotions')
+    plt.ylabel('Nombre de formations')
+    plt.title('Jours entre les formations : %.1f - %.1f - %.1f' %
+              (idle_low, idle_median, idle_high))
+    plt.legend()
+
+def get_idle_days(data):
+    idle_days = {}
     data_by_school = split_data_by_school(data)
     for key, value in data_by_school.iteritems():
+        idle_days[key] = []
         data_by_company =  split_data_by_company(value)
         for key2, value2 in data_by_company.iteritems():
-            print key, key2
             data_sorted = np.sort(value2, axis=0)
             n, nd = data_sorted.shape
             for i in xrange(n-1):
                 n_idle_days = (data_sorted[i+1, 0]-data_sorted[i, 1]).days
-                idle_days.append(n_idle_days)
-                print n_idle_days
+                idle_days[key].append(n_idle_days)
 
-    print np.median(idle_days)
-    print np.percentile(idle_days, 10)
-    print np.percentile(idle_days, 90)
-    # Days between successive groups
-    plt.figure(facecolor='w')
-    plt.hist(idle_days, bins=50)
-    plt.xlabel('Jours entre promotions')
-    plt.ylabel('Nombre de formations')
-    plt.title('Jours entre les formations')
-
-
+    return idle_days
+ 
 def state_at_time(data, t):
 
     n, nd = data.shape
@@ -127,7 +132,7 @@ def state_at_time(data, t):
         
     return state_dict
 
-def find_nan_candidates(data):
+def find_nan_proms(data):
 
     n, nd = data.shape
 
@@ -138,23 +143,24 @@ def find_nan_candidates(data):
             nan_indexes.append(i)
     nan_data = data[nan_indexes, :]
 
-    # make up non-nan indexes
-    ok_indexes = range(n)
-    for i in nan_indexes:
-        ok_indexes.remove(i)
-
-    data_dict = split_data_by_school(data[ok_indexes, :])
-    for key, value in data_dict.iteritems():
-        print key, np.unique(value[:, 2])
-
-    n_nan, nd = nan_data.shape
-    for index in xrange(n_nan):
-        school = nan_data[index, 3]
-        state_start = state_at_time(data_dict[school], nan_data[index, 0])
-        state_end = state_at_time(data_dict[school], nan_data[index, 1])
-        print nan_data[index, :]
-        print state_start
-        print state_end
+#     # make up non-nan indexes
+# 
+#     ok_indexes = range(n)
+#     for i in nan_indexes:
+#         ok_indexes.remove(i)
+# 
+#     data_dict = split_data_by_school(data[ok_indexes, :])
+#     for key, value in data_dict.iteritems():
+#         print key, np.unique(value[:, 2])
+# 
+#     n_nan, nd = nan_data.shape
+#     for index in xrange(n_nan):
+#         school = nan_data[index, 3]
+#         state_start = state_at_time(data_dict[school], nan_data[index, 0])
+#         state_end = state_at_time(data_dict[school], nan_data[index, 1])
+#         print nan_data[index, :]
+#         print state_start
+#         print state_end
         
 
     return nan_data
@@ -162,24 +168,36 @@ def find_nan_candidates(data):
 
 def evaluate_consistency(data):
 
-    # split into schools
-    data_dict = split_data_by_school(data)
     non_consistent = {}
 
-    for school in data_dict.keys():
-        school_data = data_dict[school]
-        n, nd = data_dict.shape
-        non_consistent[school] = 0
+    # split data by school
+    data_by_school = split_data_by_school(data)
+    for key, value in data_by_school.iteritems():
+        # initialize inconsistency counter
+        non_consistent[key] = 0
+        # re-split data by company
+        data_by_company =  split_data_by_company(value)
+        for key2, value2 in data_by_company.iteritems():
+            data_sorted = np.sort(value2, axis=0)
+            n, nd = data_sorted.shape
+            # loop over all proms by company and
+            for i in xrange(n):
+                for j in xrange(n):
+                    if not j==i:
+                        ok = compatible(data_sorted[j, :], data_sorted[i, :])
+                        if not ok:
+                            non_consistent[key] = non_consistent[key] + 1
 
-        for i in xrange(n):
-            for j in xrange(n):
-                if not j==i:
-                    ok = compatible(school_data[j, :], school_data[i, :])
-                    if not ok:
-                        non_consistent[school] = non_consistent[school] + 1
-
-    #### will not work - need to split by company too !!!
     return non_consistent
+
+
+def misfit_score(data):
+    non_consistent = evaluate_consistency(data)
+    nan_data = find_nan_proms(data)
+    n, nd = nan_data.shape
+    score = np.sum(non_consistent.values()) + n
+    
+    return score
 
 def compatible(prom1, prom2):
     if prom1[0] >= prom2[0] and prom1[0] <= prom2[1]:
@@ -211,11 +229,10 @@ def split_data_by_company(data):
 if __name__ == '__main__':
 
     data = read_input()
-    t = date.today()
-    state = state_at_time(data, t)
-    print state
-    nan_data = find_nan_candidates(data)
-    n = evaluate_consistency(data)
-    print n
-    # plot_stats(data)
-    #plt.show()
+    #t = date.today()
+    #print state_at_time(data, t)
+    #print find_nan_proms(data)
+    #print evaluate_consistency(data)
+    print misfit_score(data)
+    plot_stats(data)
+    plt.show()
