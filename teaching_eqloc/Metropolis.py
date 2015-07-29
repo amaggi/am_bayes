@@ -5,7 +5,8 @@ Simple metropolis sampler class
 import numpy as np
 np.random.seed(0)
 
-def Metropolis(n_samples,fun_calcLLK,fun_verify,data,m_ini,prior_bounds,prop_cov):
+def Metropolis(n_samples, fun_calcLLK, fun_verify, data, m_ini, prior_bounds,
+               prop_cov):
 
     ''' 
     Metropolis algorithm 
